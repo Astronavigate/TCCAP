@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>电信客户流失分析平台</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- ECharts -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    // Tailwind 定制主题配色
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1d4ed8',
+            secondary: '#3b82f6',
+            accent: '#10b981',
+            dark: '#1e293b'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Noto Sans SC', sans-serif;
+      background-color: #f8fafc;
+      transition: all 0.3s ease;
+      height: 100%;
+    }
+    .chart-container {
+      transition: all 0.3s ease;
+      border-radius: 10px;
+      overflow: hidden;
+      background: white;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .chart-container:hover {
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+      transform: translateY(-3px);
+    }
+    .tab-btn {
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      background: #1d4ed8;
+      color: white;
+    }
+    .prediction-card {
+      background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+      color: white;
+      border-radius: 12px;
+    }
+    .user-card {
+      background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+      color: white;
+      border-radius: 12px;
+    }
+    .sidebar-item {
+      transition: all 0.2s ease;
+      border-radius: 8px;
+      cursor: pointer;
+      padding: 8px 12px;
+    }
+    .sidebar-item:hover {
+      background-color: #e2e8f0;
+    }
+    .sidebar-item.active {
+      background-color: #dbeafe;
+      color: #1d4ed8;
+      font-weight: 500;
+    }
+    .chart-title {
+      border-left: 4px solid #3b82f6;
+      padding-left: 10px;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+    }
+    .glow {
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+    }
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      font-size: 18px;
+      color: #64748b;
+    }
+    .loading-spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #3b82f6;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      margin-right: 10px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    /* 输入指示器样式 */
+  .typing-indicator {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 20px;
+    padding: 5px 0;
+  }
+
+  .typing-indicator span {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #666;
+    margin: 0 3px;
+    animation: bounce 1.4s infinite ease-in-out both;
+  }
+
+  .typing-indicator span:nth-child(1) {
+    animation-delay: -0.32s;
+  }
+
+  .typing-indicator span:nth-child(2) {
+    animation-delay: -0.16s;
+  }
+
+  @keyframes bounce {
+    0%, 80%, 100% {
+      transform: scale(0.6);
+    }
+    40% {
+      transform: scale(1);
+    }
+  }
+
+    /* 全屏模式样式 */
+    body.fullscreen {
+      padding: 0;
+      overflow: hidden;
+    }
+    body.fullscreen header,
+    body.fullscreen footer,
+    body.fullscreen aside {
+      display: none;
+    }
+    body.fullscreen main {
+      display: none;
+    }
+    #fullscreenContainer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 999;
+      display: none; /* 初始隐藏 */
+    }
+    #fullscreenContainer.visible {
+      display: block;
+    }
+    .fullscreen-grid {
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      gap: 10px;
+      padding: 10px;
+      background-color: #ffffff; /* 确保白底 */
+    }
+    .fullscreen-chart {
+      border-radius: 8px;
+      overflow: hidden;
+      background: #ffffff; /* 白底 */
+      display: flex;
+      flex-direction: column;
+    }
+    .exit-fullscreen {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.2);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div class="flex flex-col h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-md p-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-primary p-2 rounded-lg">
+          <i class="fas fa-chart-line text-white text-xl"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-800">电信客户流失分析平台</h1>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <!-- 搜索框 + 按钮 -->
+        <div class="relative">
+          <input
+            type="text"
+            id="customerID"
+            placeholder="输入客户ID..."
+            class="pl-10 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary w-64"
+            value="11-30-89"
+          >
+          <button id="searchBtn" class="absolute right-3 top-2 text-gray-400 hover:text-gray-600">
+            <i class="fas fa-search"></i>
+          </button>
+        </div>
+
+        <div class="flex space-x-2">
+          <button id="tab1Btn" class="tab-btn px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">客户流失概览</button>
+          <button id="tab2Btn" class="tab-btn px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">客户细分与行为洞察</button>
+          <button id="tab3Btn" class="tab-btn px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">模型评估与预测分析</button>
+        </div>
+
+        <button id="fullscreenBtn" class="px-4 py-2 bg-accent text-white rounded-lg hover:bg-green-600 transition flex items-center space-x-2">
+          <i class="fas fa-expand"></i>
+          <span>大屏模式</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+      <!-- Sidebar -->
+      <aside class="w-64 bg-white border-r overflow-y-auto p-4 shadow-inner">
+        <div class="mb-6 prediction-card p-4">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-semibold">流失预测</h3>
+            <i class="fas fa-chart-pie"></i>
+          </div>
+          <div id="churnPrediction" class="text-3xl font-bold mb-2">--%</div>
+          <div class="text-sm opacity-90">输入客户ID获取预测</div>
+        </div>
+
+        <div class="user-card p-4 mb-6">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-semibold">客户信息</h3>
+            <i class="fas fa-user"></i>
+          </div>
+          <div id="userInfo">
+            <div class="flex justify-between text-sm mb-1">
+              <span>在网时长:</span>
+              <span id="userTenure">-- 月</span>
+            </div>
+            <div class="flex justify-between text-sm mb-1">
+              <span>月消费:</span>
+              <span id="userMonthly">¥ --</span>
+            </div>
+            <div class="flex justify-between text-sm mb-1">
+              <span>合同类型:</span>
+              <span id="userContract">--</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span>服务数量:</span>
+              <span id="userServices">--</span>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="font-semibold text-gray-700 mb-3">图表导航</h3>
+        <nav>
+          <ul id="sidebarList" class="space-y-2">
+            <li class="sidebar-item active p-2" data-chart="churnRatePie">
+              <i class="fas fa-chart-pie mr-2 text-primary"></i>
+              流失率总览
+            </li>
+            <li class="sidebar-item p-2" data-chart="servicesHeatmap">
+              <i class="fas fa-th mr-2 text-accent"></i>
+              服务订阅热图
+            </li>
+            <li class="sidebar-item p-2" data-chart="contractBar">
+              <i class="fas fa-file-contract mr-2 text-green-500"></i>
+              合同类型流失率
+            </li>
+            <li class="sidebar-item p-2" data-chart="tenureHist">
+              <i class="fas fa-history mr-2 text-purple-500"></i>
+              在网时长分布
+            </li>
+            <li class="sidebar-item p-2" data-chart="paymentBar">
+              <i class="fas fa-credit-card mr-2 text-amber-500"></i>
+              支付方式流失率
+            </li>
+            <li class="sidebar-item p-2" data-chart="churnTrend">
+              <i class="fas fa-chart-line mr-2 text-red-500"></i>
+              月度流失趋势预测
+            </li>
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="flex-1 p-6 overflow-y-auto bg-gray-50">
+        <!-- 客户信息提示卡 -->
+        <div id="customerResult" class="bg-white p-4 rounded-lg shadow mb-6 hidden">
+          <div class="flex justify-between items-center">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fas fa-user-circle mr-2 text-primary"></i>
+              <span>客户ID: <span id="resultCustomerID" class="font-mono">11-30-89</span> 分析结果</span>
+            </h2>
+            <button id="closeResult" class="text-gray-500 hover:text-gray-700">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="grid grid-cols-4 gap-4 mt-3">
+            <div class="bg-blue-50 p-3 rounded-lg">
+              <div class="text-sm text-gray-600">流失概率</div>
+              <div class="text-xl font-bold text-primary" id="resultProbability">--%</div>
+            </div>
+            <div class="bg-green-50 p-3 rounded-lg">
+              <div class="text-sm text-gray-600">风险等级</div>
+              <div class="text-xl font-bold text-accent" id="resultRisk">--</div>
+            </div>
+            <div class="bg-amber-50 p-3 rounded-lg">
+              <div class="text-sm text-gray-600">建议措施</div>
+              <div class="text-md font-medium" id="resultAction">输入ID查询</div>
+            </div>
+            <div class="bg-purple-50 p-3 rounded-lg">
+              <div class="text-sm text-gray-600">忠诚度评分</div>
+              <div class="text-xl font-bold text-purple-600" id="resultLoyalty">--/10</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 仪表盘1 -->
+        <section id="dashboard1" class="space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- 重点图表：流失率总览 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-4">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-primary rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">流失率总览</h2>
+              </div>
+              <div id="churnRatePie" style="height:280px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 重点图表：服务订阅热图 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-8">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-accent rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">服务订阅热图</h2>
+              </div>
+              <div id="servicesHeatmap" style="height:280px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 中等图表：合同类型流失率 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-4">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-green-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">合同类型流失率</h2>
+              </div>
+              <div id="contractBar" style="height:220px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 中等图表：在网时长分布 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-4">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-purple-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">在网时长分布</h2>
+              </div>
+              <div id="tenureHist" style="height:220px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 中等图表：支付方式流失率 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-4">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-amber-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">支付方式流失率</h2>
+              </div>
+              <div id="paymentBar" style="height:220px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 预测图表：月度流失趋势 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-12">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-red-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">月度流失趋势预测</h2>
+                <span class="ml-2 text-sm bg-red-100 text-red-800 px-2 py-1 rounded">预测分析</span>
+              </div>
+              <div id="churnTrend" style="height:250px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 仪表盘2 -->
+        <section id="dashboard2" class="hidden space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- 重点图表：服务组合与流失率 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-6">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-primary rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">服务组合与流失率</h2>
+              </div>
+              <div id="serviceCombo" style="height:300px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 重点图表：在网时长 vs 月费 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-6">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-secondary rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">在网时长 vs 月费</h2>
+              </div>
+              <div id="scatterTC" style="height:300px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 中等图表：老年客户流失率 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-4">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-green-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">老年客户流失率</h2>
+              </div>
+              <div id="seniorBar" style="height:220px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 中等图表：流失客户服务订阅 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-4">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-purple-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">流失客户服务订阅</h2>
+              </div>
+              <div id="churnServices" style="height:220px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 中等图表：合同与账单方式 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-4">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-amber-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">合同与账单方式</h2>
+              </div>
+              <div id="contractBilling" style="height:220px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 客户价值矩阵 占位 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-12">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-indigo-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">客户价值矩阵分析</h2>
+                <span class="ml-2 text-sm bg-indigo-100 text-indigo-800 px-2 py-1 rounded">类RFM模型</span>
+              </div>
+              <div id="customerMatrix" style="height:250px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 仪表盘3 -->
+        <section id="dashboard3" class="hidden space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- 重点图表：模型性能指标 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-4">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-primary rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">模型性能指标</h2>
+              </div>
+              <div id="modelMetrics" style="height:280px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 重点图表：ROC曲线 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-4">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-secondary rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">ROC曲线</h2>
+              </div>
+              <div id="rocCurve" style="height:280px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 重点图表：特征重要性 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-4">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-accent rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">特征重要性</h2>
+              </div>
+              <div id="featureImportance" style="height:280px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 中等图表：混淆矩阵 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-6">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-green-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">混淆矩阵</h2>
+              </div>
+              <div id="confusionMatrix" style="height:250px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 中等图表：预测概率分布 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-6">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-purple-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">预测概率分布</h2>
+              </div>
+              <div id="probabilityDist" style="height:250px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+
+            <!-- 预测图表：流失概率时间序列 -->
+            <div class="chart-container p-4 rounded-xl shadow col-span-12">
+              <div class="chart-title">
+                <div class="w-2 h-6 bg-red-500 rounded mr-2"></div>
+                <h2 class="text-lg font-semibold">流失概率时间序列预测</h2>
+                <span class="ml-2 text-sm bg-red-100 text-red-800 px-2 py-1 rounded">时间序列分析</span>
+              </div>
+              <div id="churnProbabilityTrend" style="height:250px;" class="loading">
+                <div class="loading-spinner"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t py-3 px-6 text-center text-sm text-gray-600">
+      <div class="flex justify-between items-center">
+        <div>© 2025 Ravon Technology, Inc.</div>
+        <div class="flex space-x-4">
+          <span>数据更新时间: <span id="updateTime">--</span></span>
+          <span>模型版本: v2.1.5</span>
+        </div>
+        <div>
+          <span class="mr-4"><i class="fas fa-database text-primary"></i> 数据量: <span id="dataCount">--</span></span>
+          <span><i class="fas fa-bolt text-amber-500"></i> 刷新率: 60分钟</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- AI 聊天浮动按钮 -->
+<button id="aiToggleBtn" class="fixed bottom-6 right-6 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-blue-700 z-50 glow">
+  <i class="fas fa-robot text-xl"></i>
+</button>
+
+<!-- AI 聊天窗口 -->
+<div id="aiChatBox" class="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-xl shadow-lg hidden z-50 flex flex-col border border-gray-200">
+  <div class="bg-primary text-white p-4 rounded-t-xl flex justify-between items-center">
+    <span class="font-semibold flex items-center">
+      <i class="fas fa-robot mr-2"></i> AI 分析助理
+    </span>
+    <button id="closeChat" class="text-white hover:text-gray-200">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <!-- 聊天内容区域 -->
+  <div id="chatContent" class="flex-1 overflow-y-auto p-4 text-sm text-gray-800 bg-gray-50">
+    <div class="chat-message ai-message mb-4">
+      <div class="font-semibold text-primary mb-1">AI助理</div>
+      <div class="bg-blue-50 p-3 rounded-lg">
+        您好！我是您的电信客户流失分析助理。您可以向我提问关于客户流失分析的问题，或者让我解释某个图表。例如：
+        <ul class="list-disc pl-5 mt-2">
+          <li>哪些因素最影响客户流失？</li>
+          <li>如何解释ROC曲线的含义？</li>
+          <li>预测模型使用了哪些特征？</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 输入区域（修改后包含中断按钮） -->
+  <div class="p-3 border-t bg-white">
+    <div class="flex gap-2">
+      <!-- 输入框 -->
+      <input
+        type="text"
+        id="chatInput"
+        placeholder="输入您的问题..."
+        class="flex-1 border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+      >
+
+      <!-- 发送按钮 -->
+      <button
+        id="sendChat"
+        class="px-4 py-2 bg-primary text-white rounded-xl text-sm hover:bg-blue-700 flex items-center justify-center"
+      >
+        <i class="fas fa-paper-plane"></i>
+      </button>
+
+      <!-- 中断按钮 -->
+      <button
+        id="interruptBtn"
+        class="px-4 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 flex items-center justify-center"
+        title="停止生成"
+      >
+        <i class="fas fa-stop"></i>
+      </button>
+    </div>
+  </div>
+</div>
+  <!-- 全屏模式容器 -->
+  <div id="fullscreenContainer">
+    <button class="exit-fullscreen">
+      <i class="fas fa-compress"></i>
+    </button>
+    <div class="fullscreen-grid"></div>
+  </div>
+
+<script>
+  // ----------------------------------------------------------
+  // 全局变量：存储 ECharts 实例及后端返回的所有图表数据
+  const chartInstances = {};
+  let globalChartData = null;
+
+  // 定义每个仪表盘对应的侧边栏菜单项：包含图表 ID、显示名称和 FontAwesome 图标类
+  const sidebarConfig = {
+    dashboard1: [
+      { chartId: 'churnRatePie', label: '流失率总览', icon: 'fa-chart-pie' },
+      { chartId: 'servicesHeatmap', label: '服务订阅热图', icon: 'fa-th' },
+      { chartId: 'contractBar', label: '合同类型流失率', icon: 'fa-file-contract' },
+      { chartId: 'tenureHist', label: '在网时长分布', icon: 'fa-history' },
+      { chartId: 'paymentBar', label: '支付方式流失率', icon: 'fa-credit-card' },
+      { chartId: 'churnTrend', label: '月度流失趋势预测', icon: 'fa-chart-line' }
+    ],
+    dashboard2: [
+      { chartId: 'serviceCombo', label: '服务组合与流失率', icon: 'fa-box' },
+      { chartId: 'scatterTC', label: '在网时长 vs 月费', icon: 'fa-chart-area' },
+      { chartId: 'seniorBar', label: '老年客户流失率', icon: 'fa-user-alt' },
+      { chartId: 'churnServices', label: '流失客户服务订阅', icon: 'fa-bell' },
+      { chartId: 'contractBilling', label: '合同与账单方式', icon: 'fa-file-invoice-dollar' },
+      { chartId: 'customerMatrix', label: '客户价值矩阵', icon: 'fa-th-large' }
+    ],
+    dashboard3: [
+      { chartId: 'modelMetrics', label: '模型性能指标', icon: 'fa-tachometer-alt' },
+      { chartId: 'rocCurve', label: 'ROC曲线', icon: 'fa-chart-line' },
+      { chartId: 'featureImportance', label: '特征重要性', icon: 'fa-star' },
+      { chartId: 'confusionMatrix', label: '混淆矩阵', icon: 'fa-table' },
+      { chartId: 'probabilityDist', label: '预测概率分布', icon: 'fa-chart-bar' },
+      { chartId: 'churnProbabilityTrend', label: '流失概率时间序列预测', icon: 'fa-chart-area' }
+    ]
+  };
+
+  // ----------------------------------------------------------
+  // 初始化单个图表：将后端返回的 option 渲染到对应容器
+  function initChart(chartId, option) {
+    const container = document.getElementById(chartId);
+    if (!container || !option) return; // 容器不存在或后端无该图表数据时，跳过
+
+    // 移除“加载中”提示
+    container.innerHTML = '';
+    container.classList.remove('loading');
+
+    // 初始化 ECharts，并保存实例
+    const chart = echarts.init(container);
+    chart.setOption(option);
+    chartInstances[chartId] = chart;
+
+    // 监听窗口尺寸变化，自动 resize
+    window.addEventListener('resize', () => {
+      chart.resize();
+    });
+  }
+
+  // ----------------------------------------------------------
+  // 一次性初始化所有图表（页面加载后调用）
+  function initAllCharts(data) {
+    // 仪表盘1 的图表
+    initChart('churnRatePie', data.churnRatePie);
+    initChart('servicesHeatmap', data.servicesHeatmap);
+    initChart('contractBar', data.contractBar);
+    initChart('tenureHist', data.tenureHist);
+    initChart('paymentBar', data.paymentBar);
+    initChart('churnTrend', data.churnTrend);
+
+    // 仪表盘2 的图表
+    initChart('serviceCombo', data.serviceCombo);
+    initChart('scatterTC', data.scatterTC);
+    initChart('seniorBar', data.seniorBar);
+    initChart('churnServices', data.churnServices);
+    initChart('contractBilling', data.contractBilling);
+    initChart('customerMatrix', data.customerMatrix);
+
+    // 仪表盘3 的图表
+    initChart('modelMetrics', data.modelMetrics);
+    initChart('rocCurve', data.rocCurve);
+    initChart('featureImportance', data.featureImportance);
+    initChart('confusionMatrix', data.confusionMatrix);
+    initChart('probabilityDist', data.probabilityDist);
+    initChart('churnProbabilityTrend', data.churnProbabilityTrend);
+  }
+
+  // ----------------------------------------------------------
+  // 更新侧边栏：根据当前仪表盘（dashboardId）重新渲染菜单项
+  function updateSidebar(dashboardId) {
+    const sidebarList = document.getElementById('sidebarList');
+    sidebarList.innerHTML = ''; // 清空原先内容
+
+    // 遍历 sidebarConfig[dashboardId]，生成 <li> 项
+    sidebarConfig[dashboardId].forEach((item, index) => {
+      const li = document.createElement('li');
+      li.className = 'sidebar-item p-2 transition rounded-md flex items-center';
+      li.setAttribute('data-chart', item.chartId);
+      // 默认选中第一个
+      if (index === 0) {
+        li.classList.add('active', 'bg-blue-50', 'text-primary');
+      } else {
+        li.classList.add('hover:bg-gray-100', 'text-gray-700');
+      }
+      li.innerHTML = `<i class="fas ${item.icon} mr-2"></i><span>${item.label}</span>`;
+      sidebarList.appendChild(li);
+
+      // 点击事件：高亮 & 滚动到对应图表
+      li.addEventListener('click', () => {
+        // 移除所有同胞的 active 样式
+        sidebarList.querySelectorAll('.sidebar-item').forEach(el => {
+          el.classList.remove('active', 'bg-blue-50', 'text-primary');
+          el.classList.add('hover:bg-gray-100', 'text-gray-700');
+        });
+        // 给自己加上 active
+        li.classList.add('active', 'bg-blue-50', 'text-primary');
+        li.classList.remove('hover:bg-gray-100', 'text-gray-700');
+
+        // 滚动到对应图表容器
+        const chartElem = document.getElementById(item.chartId);
+        if (chartElem) {
+          chartElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // 重新 resize 以保证可见时正确渲染
+          chartInstances[item.chartId]?.resize();
+        }
+      });
+    });
+  }
+
+  // ----------------------------------------------------------
+  // 加载所有图表数据：请求 /api/dashboard 并初始化所有仪表盘图表
+  function loadChartData() {
+    // 先给所有带 .loading 类的容器显示“加载中”
+    document.querySelectorAll('.loading').forEach(el => {
+      el.classList.add('loading');
+      el.innerHTML = '<div class="loading-spinner"></div><span>加载中...</span>';
+    });
+
+    fetch('/api/dashboard')
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          console.error('后端返回 error:', data.error);
+          // 如果后端有 error，则把所有 loading 容器替换为“加载失败”
+          document.querySelectorAll('.loading').forEach(el => {
+            el.innerHTML = '<div class="text-red-500">加载失败，请检查后端</div>';
+          });
+          return;
+        }
+
+        // 保存后端返回的完整数据，供后续切换时访问
+        globalChartData = data;
+
+        // 更新页面底部：数据更新时间 与 数据量
+        document.getElementById('updateTime').textContent = new Date().toLocaleString();
+        document.getElementById('dataCount').textContent = data.dataCount || '--';
+
+        // 一次性初始化所有图表（包括隐藏的）
+        initAllCharts(data);
+
+        // 也要调用一次 updateSidebar 来渲染左侧 菜单（默认仪表盘1）
+        updateSidebar('dashboard1');
+      })
+      .catch(error => {
+        console.error('加载仪表盘数据失败:', error);
+        document.querySelectorAll('.loading').forEach(el => {
+          el.innerHTML = '<div class="text-red-500">加载失败，请刷新页面</div>';
+        });
+      });
+  }
+
+  // ----------------------------------------------------------
+  // 搜索客户：请求 /api/customer/<customerId> 并更新侧栏信息
+  function searchCustomer() {
+    const customerId = document.getElementById('customerID').value.trim();
+    if (!customerId) return;
+
+    fetch(`/api/customer/${encodeURIComponent(customerId)}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          alert(data.error);
+        } else {
+          updateCustomerInfo(data);
+        }
+      })
+      .catch(error => {
+        console.error('搜索客户失败:', error);
+        alert('搜索客户失败，请重试');
+      });
+  }
+
+  // ----------------------------------------------------------
+  // 更新侧栏客户信息：流失概率、在网时长、月消费、合同类型、服务数量，以及结果卡片
+  function updateCustomerInfo(info) {
+    // 左侧顶部“流失预测”卡片
+    document.getElementById('churnPrediction').textContent = info.churnProbability + '%';
+    document.getElementById('userTenure').textContent = info.tenure + ' 月';
+    document.getElementById('userMonthly').textContent = '¥ ' + info.monthlyCharges;
+    document.getElementById('userContract').textContent = info.contractType;
+    document.getElementById('userServices').textContent = info.servicesCount;
+
+    // 底部“客户结果”卡片
+    document.getElementById('resultProbability').textContent = info.churnProbability + '%';
+    document.getElementById('resultCustomerID').textContent = info.customerID;
+
+    // 风险等级 与 颜色
+    let riskLevel = '低';
+    let riskColor = 'text-green-500';
+    if (info.churnProbability > 30) {
+      riskLevel = '中';
+      riskColor = 'text-amber-500';
+    }
+    if (info.churnProbability > 50) {
+      riskLevel = '高';
+      riskColor = 'text-red-500';
+    }
+    const riskElem = document.getElementById('resultRisk');
+    riskElem.textContent = riskLevel;
+    riskElem.className = `text-xl font-bold ${riskColor}`;
+
+    // 建议措施
+    let action = '保持当前服务策略';
+    if (info.churnProbability > 30) action = '提供个性化优惠套餐';
+    if (info.churnProbability > 50) action = '主动联系客户，提供专属解决方案';
+    document.getElementById('resultAction').textContent = action;
+
+    // 忠诚度评分（后端返回）
+    const loyalty = info.loyaltyScore !== undefined ? info.loyaltyScore : '--';
+    document.getElementById('resultLoyalty').textContent = loyalty + '/10';
+
+    // 显示“客户结果”卡片
+    document.getElementById('customerResult').classList.remove('hidden');
+  }
+
+  // ----------------------------------------------------------
+  // 页面加载完成后，执行初始化逻辑
+  document.addEventListener('DOMContentLoaded', function() {
+    // 1. 首次加载：请求后端并一次性初始化所有图表
+    loadChartData();
+
+    // 2. 绑定“切换仪表盘”按钮：点击后切换可见区域、更新侧边栏 & resize 图表
+    const tabs = ['dashboard1', 'dashboard2', 'dashboard3'];
+    const btns = ['tab1Btn', 'tab2Btn', 'tab3Btn'];
+
+    // 2.1 页面一加载，就给第一个按钮（tab1Btn）添加高亮样式
+    const firstBtn = document.getElementById('tab1Btn');
+    firstBtn.classList.remove('bg-gray-200', 'text-gray-700');
+    firstBtn.classList.add('bg-primary', 'text-white', 'active');
+
+    // 2.2 同时把“仪表盘1”区域设为可见，另外两个默认隐藏
+    document.getElementById('dashboard1').classList.remove('hidden');
+    document.getElementById('dashboard2').classList.add('hidden');
+    document.getElementById('dashboard3').classList.add('hidden');
+
+    btns.forEach((btnId, idx) => {
+      document.getElementById(btnId).addEventListener('click', () => {
+        // 2.3 切换按钮样式：只有当前 idx 的按钮高亮，其他按钮恢复灰色
+        btns.forEach((bId, i) => {
+          const btnElem = document.getElementById(bId);
+          if (i === idx) {
+            btnElem.classList.remove('bg-gray-200', 'text-gray-700');
+            btnElem.classList.add('bg-primary', 'text-white', 'active');
+          } else {
+            btnElem.classList.remove('bg-primary', 'text-white', 'active');
+            btnElem.classList.add('bg-gray-200', 'text-gray-700');
+          }
+        });
+
+        // 2.4 区域切换：显示对应 idx 的 <section>，隐藏其他两个
+        tabs.forEach((tab, i) => {
+          const tabElem = document.getElementById(tab);
+          if (i === idx) {
+            tabElem.classList.remove('hidden');
+          } else {
+            tabElem.classList.add('hidden');
+          }
+        });
+
+        // 2.5 更新侧边栏内容：用 sidebarConfig 渲染当前仪表盘的菜单项
+        updateSidebar(tabs[idx]);
+
+        // 2.6 当前可见区域对应的所有图表做 resize()
+        const currentChartIds = sidebarConfig[tabs[idx]].map(item => item.chartId);
+        currentChartIds.forEach(chartId => {
+          chartInstances[chartId]?.resize();
+        });
+      });
+    });
+
+    // 3. 搜索客户功能：点击搜索按钮或按回车键触发 searchCustomer()
+    document.getElementById('searchBtn').addEventListener('click', searchCustomer);
+    document.getElementById('customerID').addEventListener('keyup', function(e) {
+      if (e.key === 'Enter') {
+        searchCustomer();
+      }
+    });
+
+    // 4. 关闭“客户结果”卡片
+    document.getElementById('closeResult')?.addEventListener('click', function() {
+      document.getElementById('customerResult').classList.add('hidden');
+    });
+
+    // ----------------------------------------------------------
+    // 5. AI 聊天窗口：流式传输实现
+document.getElementById('aiToggleBtn').addEventListener('click', function() {
+    document.getElementById('aiChatBox').classList.toggle('hidden');
+});
+document.getElementById('closeChat').addEventListener('click', function() {
+    document.getElementById('aiChatBox').classList.add('hidden');
+});
+
+// 流式响应控制器（用于中断）
+let currentController = null;
+
+document.getElementById('sendChat').addEventListener('click', function() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+
+    if (message) {
+        addUserMessage(message);
+        input.value = '';
+
+        // 创建新的AbortController用于中断请求
+        const controller = new AbortController();
+        currentController = controller;
+
+        // 显示AI正在输入的指示器
+        const aiMessageId = startAiMessage();
+
+        // 发送请求到AI服务器
+        fetch('/api/ai/stream_generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prompt: message,
+                stream: true
+            }),
+            signal: controller.signal
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let aiResponse = '';
+
+            function read() {
+                return reader.read().then(({ done, value }) => {
+                    if (done) {
+                        // 流结束
+                        finishAiMessage(aiMessageId, aiResponse);
+                        currentController = null;
+                        return;
+                    }
+
+                    // 处理数据块
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const eventData = line.substring(6).trim();
+
+                            if (eventData === '[STOP]') {
+                                // 中断信号
+                                console.log('Generation interrupted');
+                                finishAiMessage(aiMessageId, aiResponse + " [中断]");
+                                currentController = null;
+                                return;
+                            }
+
+                            if (eventData && !eventData.startsWith('[ERROR')) {
+                                aiResponse += eventData;
+                                // 更新最后一条AI消息
+                                updateAiMessage(aiMessageId, aiResponse);
+                            }
+                        }
+                    }
+
+                    // 继续读取下一块
+                    return read();
+                });
+            }
+
+            return read();
+        })
+        .catch(error => {
+            if (error.name === 'AbortError') {
+                console.log('Fetch aborted');
+                finishAiMessage(aiMessageId, "请求已中断");
+            } else {
+                console.error('Error:', error);
+                finishAiMessage(aiMessageId, '抱歉，处理您的请求时出错。请稍后再试。');
+            }
+            currentController = null;
+        });
+    }
+});
+
+// 中断按钮事件
+document.getElementById('interruptBtn').addEventListener('click', function() {
+    if (currentController) {
+        currentController.abort();
+        console.log('Request aborted');
+    }
+
+    // 同时发送中断信号到服务器
+    fetch('/api/ai/interrupt_stream', {
+        method: 'POST'
+    })
+    .catch(error => console.error('Error sending interrupt:', error));
+});
+
+// 添加用户消息
+function addUserMessage(msg) {
+    const chatContent = document.getElementById('chatContent');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-message user-message mb-4 text-right';
+    messageDiv.innerHTML = `
+        <div class="font-semibold text-secondary mb-1">您</div>
+        <div class="bg-indigo-50 p-3 rounded-lg inline-block max-w-[80%]">
+            ${msg}
+        </div>
+    `;
+    chatContent.appendChild(messageDiv);
+    chatContent.scrollTop = chatContent.scrollHeight;
+}
+
+// 开始AI消息（返回消息元素的ID）
+function startAiMessage() {
+    const chatContent = document.getElementById('chatContent');
+    const messageId = 'ai-msg-' + Date.now();
+
+    const messageDiv = document.createElement('div');
+    messageDiv.id = messageId;
+    messageDiv.className = 'chat-message ai-message mb-4';
+    messageDiv.innerHTML = `
+        <div class="font-semibold text-primary mb-1">AI助理</div>
+        <div class="bg-blue-50 p-3 rounded-lg">
+            <div class="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    `;
+
+    chatContent.appendChild(messageDiv);
+    chatContent.scrollTop = chatContent.scrollHeight;
+
+    return messageId;
+}
+
+// 更新AI消息内容
+function updateAiMessage(messageId, content) {
+    const messageDiv = document.getElementById(messageId);
+    if (messageDiv) {
+        const contentDiv = messageDiv.querySelector('.bg-blue-50');
+        if (contentDiv) {
+            // 移除输入指示器
+            const typingIndicator = contentDiv.querySelector('.typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+
+            // 添加实际内容
+            contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }
+    }
+}
+
+// 完成AI消息（移除输入指示器，设置最终内容）
+function finishAiMessage(messageId, content) {
+    const messageDiv = document.getElementById(messageId);
+    if (messageDiv) {
+        const contentDiv = messageDiv.querySelector('.bg-blue-50');
+        if (contentDiv) {
+            // 移除输入指示器
+            const typingIndicator = contentDiv.querySelector('.typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+
+            // 设置最终内容
+            contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }
+    }
+}
+
+    // ----------------------------------------------------------
+    // 6. 大屏模式：进入 / 退出 逻辑
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const exitBtn = document.querySelector('.exit-fullscreen');
+    const fullscreenContainer = document.getElementById('fullscreenContainer');
+
+    fullscreenBtn.addEventListener('click', function() {
+      document.body.classList.add('fullscreen');
+      fullscreenContainer.classList.add('visible');
+      createFullscreenCharts();
+    });
+
+    exitBtn.addEventListener('click', function() {
+      document.body.classList.remove('fullscreen');
+      fullscreenContainer.classList.remove('visible');
+    });
+
+    function createFullscreenCharts() {
+      const grid = document.querySelector('.fullscreen-grid');
+      grid.innerHTML = ''; // 先清空
+
+      // 定义大屏展示的图表及其网格位置
+      const configs = [
+        { id: 'fullscreen-1', chartId: 'churnRatePie', title: '流失率总览', col: '1 / span 3', row: '1 / span 2' },
+        { id: 'fullscreen-2', chartId: 'churnTrend', title: '月度流失趋势预测', col: '4 / span 5', row: '1 / span 2' },
+        { id: 'fullscreen-3', chartId: 'servicesHeatmap', title: '服务订阅热图', col: '9 / span 4', row: '1 / span 2' },
+        { id: 'fullscreen-4', chartId: 'scatterTC', title: '在网时长 vs 月费', col: '1 / span 4', row: '3 / span 2' },
+        { id: 'fullscreen-5', chartId: 'contractBar', title: '合同类型流失率', col: '5 / span 4', row: '3 / span 2' },
+        { id: 'fullscreen-6', chartId: 'featureImportance', title: '特征重要性', col: '9 / span 4', row: '3 / span 2' },
+        { id: 'fullscreen-7', chartId: 'customerMatrix', title: '客户价值矩阵', col: '1 / span 6', row: '5 / span 2' },
+        { id: 'fullscreen-8', chartId: 'probabilityDist', title: '预测概率分布', col: '7 / span 6', row: '5 / span 2' }
+      ];
+
+      configs.forEach(cfg => {
+        // 创建大屏单个图表容器
+        const container = document.createElement('div');
+        container.className = 'fullscreen-chart';
+        container.id = cfg.id;
+        container.style.gridColumn = cfg.col;
+        container.style.gridRow = cfg.row;
+
+        // 添加标题栏
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'p-3 text-dark font-semibold';
+        titleDiv.textContent = cfg.title;
+        container.appendChild(titleDiv);
+
+        // 图表占位
+        const chartDiv = document.createElement('div');
+        chartDiv.style.height = 'calc(100% - 40px)';
+        chartDiv.style.width = '100%';
+        container.appendChild(chartDiv);
+
+        document.querySelector('.fullscreen-grid').appendChild(container);
+
+        // 如果该图表已创建则克隆配置到大屏；否则显示“暂无数据”
+        const existing = chartInstances[cfg.chartId];
+        if (existing) {
+          const newChart = echarts.init(chartDiv);
+          newChart.setOption(existing.getOption());
+          window.addEventListener('resize', () => {
+            newChart.resize();
+          });
+        } else {
+          chartDiv.innerHTML = '<div class="loading"><div class="loading-spinner"></div><span>暂无数据</span></div>';
+        }
+      });
+    }
+  });
+</script>
+
+</body>
+</html>
