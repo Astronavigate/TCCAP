@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify, request, render_template, stream_with
 from res import preprocess as prep
 from res import analyze
 import requests
+import re
 
 app = Flask(__name__)
 
@@ -46,7 +47,8 @@ def ai_stream_generate():
         data = request.get_json()
 
         data['prompt'] = ("你是一个电信客户流失分析助手，请根据提供的数据回答用户问题。注意：你只能回答与电信客户流失分析相关的问题。如果"
-                          "用户的问题与电信客户流失分析无关，请礼貌地拒绝回答。以下是用户提问：" + data['prompt'])
+                          "用户的问题与电信客户流失分析无关，请礼貌地拒绝回答。以下是用户提问：" + data['prompt'] + "以下是用户数据："
+                          + get_user_data(data['prompt']).to_string())
 
         # 转发请求到AI服务器
         ai_response = requests.post(
@@ -84,6 +86,22 @@ def ai_stream_generate():
             "message": str(e)
         }), 500
 
+
+def get_user_data(prompt):
+    global df_processed
+
+    ids = re.findall(r'\b\d{2}-\d{2}-\d{2}\b', prompt)
+
+    if not ids:
+        return pd.DataFrame(columns=df_processed.columns)
+
+    mask = df_processed.apply(
+        lambda row: any(id_ in str(cell) for id_ in ids for cell in row),
+        axis=1
+    )
+    matched_rows = df_processed[mask]
+
+    return matched_rows
 
 # 中断生成接口代理
 @app.route('/api/ai/interrupt_stream', methods=['POST'])

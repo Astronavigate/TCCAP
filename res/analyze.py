@@ -436,6 +436,7 @@ def train_churn_model(df):
         'recall': recall_score(y_test, y_pred, zero_division=0),
         'f1': f1_score(y_test, y_pred, zero_division=0)
     }
+    print(model_metrics)
     globals()['model_metrics'] = model_metrics
 
     # 11. 计算 ROC 曲线数据
@@ -668,26 +669,6 @@ def create_churn_probability_trend(df):
         else:
             group_features = group_means.copy()
 
-        # 5.3 注意：如果你的模型 Pipeline 里需要对分类特征进行 OneHot，
-        #      此处需要传入包含分类列的“原始分组平均值”，然后让 Pipeline 自动编码。
-        #      考虑到我们只对数值列做 mean，下面的做法需要保证“分类列”在聚合时要么被忽略、
-        #      要么你自己补齐分组后的“分类特征平均”方式（通常没有意义）。最常见的做法是：
-        #      model.predict_proba(group_features) 会自动通过 ColumnTransformer 处理，
-        #      但前提是 group_features 必须含有完整的原始特征列（包括分类列）。
-        #
-        #      因此，更稳妥的实现：
-        #      ① 先用 tenure_bins 给 df 增加一列，例如 df['tenure_bin'] = tenure_bins
-        #      ② 对原始 df 做 groupby，选出所有特征列的“平均”方法，对于数值列用 mean，对于分类列用“众数”或“第一个出现值”……
-        #      ③ 得到一个“每个分组对应一行、包含所有原始特征列”的 DataFrame group_all_features，
-        #      ④ 再把 group_all_features 直接传给 model.predict_proba()。
-        #
-        #      下面示例中，我们采取一个简化技巧：只让模型对数值特征做预测，而把分类特征“拼一个常数”或跳过。这通常只适用于分类特征对预测影响不大，或者分类特征只有 one-hot 编码之后才用。
-        #
-        #      如果你的 model.pipeline.preprocessor 中已经指定了对分类列做 OneHot，那么直接传 group_features（只含数值列）会导致管道抛错“找不到分类列”。
-        #
-        #      正确做法是重建一个“分组后的原始 DataFrame”，示例见下面的“附加说明”。
-        #
-        # 5.4 假设“分组平均值只包含数值列”正好能让 Pipeline 工作（你的 ColumnTransformer 中只对数值列 passthrough，分类列全部用 OneHotEncoder），则：
         try:
             # Model.predict_proba 接受 DataFrame 或二维 ndarray，两种方式都行
             proba_raw = model.predict_proba(group_features)[:, 1] * 100
